@@ -186,9 +186,7 @@ void turnLeftDegrees(int degrees)
 {
 	int motorSpeed = 127;
 
-
 	//While the absolute value of the gyro is less than the desired rotation...
-
 	while(abs(SensorValue[G]) > degrees)
 	{
 		//...continue turning
@@ -204,10 +202,8 @@ void turnLeftDegrees(int degrees)
 
 void turnRightDegrees(int degrees)
 {
-	//Specify the number of degrees for the robot to turn (1 degree = 10, or 900 = 90 degrees)
-	//int originalDegrees = SensorValue[G];
-	//int error_degrees = degrees10 - SensorValue[G];
 	int motorSpeed = 127;
+
 	//While the absolute value of the gyro is less than the desired rotation...
 	while(abs(SensorValue[G]) < degrees)
 	{
@@ -247,26 +243,12 @@ task motorMath //Combine the linear and angular components
 	}
 }
 
-//task motorMath
-//{
-//	while(true)
-//	{
-//		motorRegistery[0][0] = sqrt(pow(motorRegistery[1][0], 2) + pow(motorRegistery[2][0], 2));
-//		motorRegistery[0][1] = sqrt(pow(motorRegistery[1][1], 2) + pow(motorRegistery[2][1], 2));
-//		motorRegistery[0][2] = sqrt(pow(motorRegistery[1][2], 2) + pow(motorRegistery[2][2], 2));
-//		motorRegistery[0][3] = sqrt(pow(motorRegistery[1][3], 2) + pow(motorRegistery[2][3], 2));
-//		wait1Msec(20);
-//	}
-//}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 task clawPID()
 {
 	int clawError = 0;
 	int clawOutput = 0;
-
-
 
 	while( true )
 	{
@@ -290,9 +272,6 @@ task clawPID()
 			}
 
 			clawOutput = abs(clawOutput) > 20 ? clawOutput : 0;
-
-			//datalogAddValue(0, clawOutput);
-
 			clawDrive(clawOutput);
 		}
 		else
@@ -301,8 +280,6 @@ task clawPID()
 			clawError = 0;
 			clawOutput = 0;
 		}
-		//		writeDebugStreamLine("%d",findPercentageLift());
-		//writeDebugStreamLine("%d|%d|%d|%d|%d|%d|%d|%d",nSysTime, SensorValue[armPot], CurrentError, liftOutput, ArmTargetReached, Integral, Derivative, Jerk);
 
 		// Run at 50Hz
 		wait1Msec( 25 );
@@ -338,10 +315,6 @@ task liftPID()
 			}
 
 			liftOutput = abs(liftOutput) > 20 ? liftOutput : 0;
-
-			//talogAddValue(0, liftTarget);
-			//datalogAddValue(1, SensorValue[AP]);
-
 			liftDrive(liftOutput);
 		}
 		else
@@ -350,8 +323,6 @@ task liftPID()
 			liftError = 0;
 			liftOutput = 0;
 		}
-		//		writeDebugStreamLine("%d",findPercentageLift());
-		//writeDebugStreamLine("%d|%d|%d|%d|%d|%d|%d|%d",nSysTime, SensorValue[armPot], CurrentError, liftOutput, ArmTargetReached, Integral, Derivative, Jerk);
 
 		// Run at 50Hz
 		wait1Msec( 25 );
@@ -412,7 +383,7 @@ task autonomous()
 	startTask(liftPID);
 	startTask(clawPID);
 
-	if(SensorValue[SP] < 900)
+	if(SensorValue[SP] < 900) //Left
 	{
 		if(SensorValue[OP] < 1350) //Cube
 		{
@@ -428,7 +399,6 @@ task autonomous()
 			clawSet(clawClose);
 			wait1Msec(300);
 			liftSet(liftUp);
-			//yDriveDistance(-500,127);
 			turnRightDegrees(1800);
 			yDriveDistance(-100,127);
 			liftSet(liftOver);
@@ -437,38 +407,39 @@ task autonomous()
 			wait1Msec(1000);
 			liftSet(liftUp);
 		}
+	}
 
-		if(SensorValue[SP] >= 900 && SensorValue[SP] <= 1800)
+	if(SensorValue[SP] >= 900 && SensorValue[SP] <= 1800) //Skills
+	{
+		liftEnable = true;                  //Activate arm
+		clawEnable = true;                  //Activate claw
+		yDriveDistance(-800, 127);          //Back up
+		liftSet(liftUp);                    //Lift the arm to protect the claw
+		clawSet(clawOpen);                  //Open the claw for claw deployment
+		wait1Msec(100);                     //Pause for claw deployment
+		liftSet(liftDown);                  //Lower the arm for "Phase I - Driver Loads"
+
+		/*"Phase I - Driver Loads"*/
+		for(int n	 = 0; n<3; n++)           //Run 3 times
 		{
-			liftEnable = true;
-			clawEnable = true;
-			yDriveDistance(-800, 127); //Back up 18 inches
-			liftSet(liftUp); //Lift the arm to protect the claw
-			clawSet(clawOpen); //Open the claw
-			wait1Msec(100); //Pause for claw deployment
-			liftSet(liftDown); //Lower the arm for "Phase I - Driver Loads"
-
-			/*"Phase I - Driver Loads"*/
-			for(int n	 = 0; n<3; n++)
-			{
-				wait1Msec(1000); //Pause for Load placement
-				clawSet(clawClose); //Grab driver load
-				wait1Msec(300); //pause
-				liftSet(liftUp);
-				yDriveDistance(round(-800), 127); //Back up 12 inches
-				liftSet(liftOver);
-				dump();
-				wait1Msec(500);
-				liftSet(liftDown); //Lower the arm
-				wait1Msec(300);
-				yDriveDistance(800, 127); //Drive 12 inches
-				clawSet(clawOpen);
-			}
-
-			/*Phase II - */
+			wait1Msec(1000);									//Pause for Load placement
+			clawSet(clawClose);								//Grab driver load
+			wait1Msec(300);										//Pause
+			liftSet(liftUp);									//Lift driver load
+			yDriveDistance(round(-800), 127);	//Back up
+			liftSet(liftOver);								//Start lifting motion
+			dump(); 													//Dump
+			wait1Msec(500);										//Pause for Dump Completion
+			liftSet(liftDown);								//Lower the arm
+			wait1Msec(300);										//Pause for arm reset
+			yDriveDistance(800, 127);					//Drive forward
+			clawSet(clawOpen);								//Open claw for next load
 		}
+	}
 
-		if(SensorValue[SP] > 1800)
+	if(SensorValue[SP] > 1800) //Right
+	{
+		if(SensorValue[OP] < 1350) //Cube
 		{
 			liftEnable = true;
 			clawEnable = true;
@@ -482,7 +453,6 @@ task autonomous()
 			clawSet(clawClose);
 			wait1Msec(300);
 			liftSet(liftUp);
-			//yDriveDistance(-500,127);
 			turnLeftDegrees(1800);
 			yDriveDistance(-100,127);
 			liftSet(liftOver);
@@ -494,88 +464,90 @@ task autonomous()
 	}
 }
 
-	/*---------------------------------------------------------------------------*/
-	/*                                                                           */
-	/*                              User Control Task                            */
-	/*                                                                           */
-	/*  This task is used to control your robot during the user control phase of */
-	/*  a VEX Competition.                                                       */
-	/*                                                                           */
-	/*  You must modify the code to add your own robot specific commands here.   */
-	/*---------------------------------------------------------------------------*/
 
-	task usercontrol()
+/*---------------------------------------------------------------------------*/
+/*                                                                           */
+/*                              User Control Task                            */
+/*                                                                           */
+/*  This task is used to control your robot during the user control phase of */
+/*  a VEX Competition.                                                       */
+/*                                                                           */
+/*  You must modify the code to add your own robot specific commands here.   */
+/*---------------------------------------------------------------------------*/
+
+task usercontrol()
+{
+startTask(motorMath);
+startTask(setMotors);
+startTask(liftPID);
+startTask(clawPID);
+
+while(true)
+{
+	rotateDrive(abs(vexRT[Ch1]) > 20 ? vexRT[Ch1] : 0); //Right Joystick Horizontal - Rotation
+	forwardDrive(abs(vexRT[Ch3]) > 20 ? vexRT[Ch3] : 0); //Left Joystick Vertical - Forward
+	sideDrive(abs(vexRT[Ch4]) > 20 ? vexRT[Ch4] : 0); //Left Joystick Horizontal - Sideways
+
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	if(abs(vexRT[Ch2Xmtr2]) > 10) //Controller 2 Vertical - Manual Lift
 	{
-		startTask(motorMath);
-		startTask(setMotors);
-		startTask(liftPID);
-		startTask(clawPID);
-
-		while(true)
+		int x;
+		x = liftTarget + round(-vexRT[Ch2Xmtr2] * 0.04);
+		if(liftDown < x < liftOver)
 		{
-			rotateDrive(abs(vexRT[Ch1]) > 20 ? vexRT[Ch1] : 0); //Right Joystick Horizontal - Rotation
-			forwardDrive(abs(vexRT[Ch3]) > 20 ? vexRT[Ch3] : 0); //Left Joystick Vertical - Forward
-			sideDrive(abs(vexRT[Ch4]) > 20 ? vexRT[Ch4] : 0); //Left Joystick Horizontal - Sideways
-
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			if(abs(vexRT[Ch2Xmtr2]) > 10) //Controller 2 Vertical - Manual Lift
-			{
-				int x;
-				x = liftTarget + round(-vexRT[Ch2Xmtr2] * 0.04);
-				if(liftDown < x < liftOver)
-				{
-					liftTarget = x;
-				}
-				if(x <= liftOver)
-				{
-					liftTarget = liftOver;
-				}
-				if(x >= liftDown)
-				{
-					liftTarget = liftDown;
-				}
-			}
-
-			if(vexRT(Btn5DXmtr2) == true) //Manual Claw Close
-			{
-				clawSet(clawClose);
-			}
-			if(vexRT(Btn5UXmtr2) == true) //Manual Claw Open
-			{
-				clawSet(clawOpen);
-			}
-
-			/////////////////////////////////////////////////////////////////////////////////
-
-			if(vexRT(Btn7D) == true || vexRT(Btn7DXmtr2) == true)
-			{
-				liftEnable = false;
-			}
-
-			if(vexRT(Btn8DXmtr2) == true) //Macro -
-			{
-				liftEnable = true;
-				clawEnable = true;
-				liftSet(liftDown);
-				clawSet(clawOpen);
-			}
-
-			if(vexRT(Btn8RXmtr2) == true)
-			{
-				liftEnable = true;
-				clawEnable = true;
-				clawSet(clawClose);
-				wait1Msec(300);
-				liftSet(liftUp);
-			}
-
-			if(vexRT(Btn8UXmtr2) == true && vexRT(Btn6UXmtr2) == true || vexRT(Btn8UXmtr2) == true && vexRT(Btn6DXmtr2) == true)
-			{
-				liftEnable = true;
-				clawEnable = true;
-				liftSet(liftOver);
-				startTask(dumpTask);
-			}
+			liftTarget = x;
+		}
+		if(x <= liftOver)
+		{
+			liftTarget = liftOver;
+		}
+		if(x >= liftDown)
+		{
+			liftTarget = liftDown;
 		}
 	}
+
+	if(vexRT(Btn5DXmtr2) == true) //Manual Claw Close
+	{
+		clawSet(clawClose);
+	}
+	if(vexRT(Btn5UXmtr2) == true) //Manual Claw Open
+	{
+		clawSet(clawOpen);
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////
+
+	if(vexRT(Btn7D) == true || vexRT(Btn7DXmtr2) == true)
+	{
+		liftEnable = false;
+		clawEnable = false;
+	}
+
+	if(vexRT(Btn8DXmtr2) == true) //Macro - Down
+	{
+		liftEnable = true;
+		clawEnable = true;
+		liftSet(liftDown);
+		clawSet(clawOpen);
+	}
+
+	if(vexRT(Btn8RXmtr2) == true) //Macro - Lift
+	{
+		liftEnable = true;
+		clawEnable = true;
+		clawSet(clawClose);
+		wait1Msec(300);
+		liftSet(liftUp);
+	}
+
+	if(vexRT(Btn8UXmtr2) == true && vexRT(Btn6UXmtr2) == true || vexRT(Btn8UXmtr2) == true && vexRT(Btn6DXmtr2) == true) //Macro - Dump
+	{
+		liftEnable = true;
+		clawEnable = true;
+		liftSet(liftOver);
+		startTask(dumpTask);
+	}
+}
+}
