@@ -381,7 +381,7 @@ task autonomous()
 	startTask(liftPID);
 	startTask(clawPID);
 
-	if(SensorValue[SP] < 2730) //Left
+	if(SensorValue[SP] > 2730) //Left
 	{
 		if(SensorValue[OP] < 2047) //Cube
 		{
@@ -419,7 +419,9 @@ task autonomous()
 		}
 		else
 		{
-			liftSet(1875);
+			liftEnable = true;
+			clawEnable = true;
+			liftSet(1675);
 			clawSet(clawOpen);
 			yDriveDistance(1500, 127);
 			wait1Msec(1000);
@@ -454,17 +456,40 @@ task autonomous()
 		}
 
 		/*"Phase II - Cube"*/
+		wait1Msec(1000); //Pause for Cooldown
 		turnLeftDegrees(2700);
 		yDriveDistance(1000, 127);
 		clawSet(clawClose);
 		wait1Msec(300);
 		liftSet(liftUp);
 		yDriveDistance(-1000, 127);
-		turnRightDegrees(0000);
+		SensorValue[G] = 0;
+		turnRightDegrees(900);
+		yDriveDistance(-400, 127);
 		liftSet(liftOver);
+		dump();
 		wait1Msec(1000);
-		clawSet(clawOpen);
+		liftSet(liftUp);
+
+		/*"Phase III - Fence Stars"*/
+		wait1Msec(1000);
+		clawSet(1150);
+		SensorValue[G] = 0;
+		turnLeftDegrees(2700);
+		liftSet(liftDown);
+		yDriveDistance(1500, 127);
+		clawSet(clawClose);
+		wait1Msec(300);
+		liftSet(liftUp);
+		yDriveDistance(-500, 127);
+		SensorValue[G] = 0;
+		turnRightDegrees(900);
+		liftSet(liftOver);
+		dump();
+		wait1Msec(1000);
+		liftSet(liftUp);
 	}
+
 
 	if(SensorValue[SP] < 1365) //Right
 	{
@@ -504,7 +529,9 @@ task autonomous()
 		}
 		else
 		{
-			liftSet(1875);
+			liftEnable = true;
+			clawEnable = true;
+			liftSet(1675);
 			clawSet(clawOpen);
 			yDriveDistance(1500, 127);
 			wait1Msec(1000);
