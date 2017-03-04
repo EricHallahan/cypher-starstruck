@@ -3,7 +3,7 @@
 #pragma config(Sensor, in1,    AP,             sensorPotentiometer)
 #pragma config(Sensor, in2,    CP,             sensorPotentiometer)
 #pragma config(Sensor, in3,    SP,             sensorPotentiometer)
-#pragma config(Sensor, in4,    OP,             sensorNone)
+#pragma config(Sensor, in4,    OP,             sensorPotentiometer)
 #pragma config(Sensor, in5,    G,              sensorGyro)
 #pragma config(Sensor, I2C_1,  FLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Sensor, I2C_2,  RLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
@@ -55,8 +55,6 @@ int clawOpen = 1000;
 int clawClose = 1850;
 bool clawEnable = false;
 
-float E_in = 3.25*PI/392;
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void encoderReset()
@@ -70,7 +68,7 @@ void encoderReset()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void leftDrive(int power) // Set Left Drivetrain motors
+void leftDrive(int power) //Set Left Drivetrain motors
 {
 	motor[FL] = power;
 	motor[RL] = power;
@@ -144,7 +142,7 @@ void sideDrive(byte motorSpeed) //Set Middle Registry
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-void yDriveDistance(float distance, float speed) //
+void yDriveDistance(float distance, float speed) //Drive forward for distance
 {
 	encoderReset();
 	if(SensorValue[FLE] < distance)
@@ -187,14 +185,14 @@ void turnLeftDegrees(int degrees)
 	int motorSpeed = 127;
 
 	//While the absolute value of the gyro is less than the desired rotation...
-	while(abs(SensorValue[G]) > degrees)
+	while(3600-abs(SensorValue[G]) > degrees)
 	{
 		//...continue turning
 		rotateDrive(-motorSpeed);
 	}
 
 	//Brief brake to stop some drift
-	rotateDrive(-motorSpeed);
+	rotateDrive(motorSpeed);
 	wait1Msec(200);
 	rotateDrive(0);
 	wait1Msec(100);
@@ -238,7 +236,7 @@ task motorMath //Combine the linear and angular components
 		motorRegistery[0][0] = (motorRegistery[1][0] + motorRegistery[2][0]);//
 		motorRegistery[0][1] = (motorRegistery[1][1] + motorRegistery[2][1]);//
 		motorRegistery[0][2] = (motorRegistery[1][2] + motorRegistery[2][2]);//
-		motorRegistery[0][3] = (motorRegistery[1][3] + motorRegistery[2][3]);//
+		//motorRegistery[0][3] = (motorRegistery[1][3] + motorRegistery[2][3]);//
 		wait1Msec(20);
 	}
 }
@@ -383,9 +381,9 @@ task autonomous()
 	startTask(liftPID);
 	startTask(clawPID);
 
-	if(SensorValue[SP] < 900) //Left
+	if(SensorValue[SP] < 2730) //Left
 	{
-		if(SensorValue[OP] < 1350) //Cube
+		if(SensorValue[OP] < 2047) //Cube
 		{
 			liftEnable = true;
 			clawEnable = true;
@@ -405,11 +403,30 @@ task autonomous()
 			wait1Msec(1000);
 			clawSet(clawOpen);
 			wait1Msec(1000);
+			liftSet(liftDown); //section2
+			wait1Msec(1000);
+			yDriveDistance(900, 127);
+			wait1Msec(500);
+			clawSet(clawClose);
+			wait1Msec(600);
 			liftSet(liftUp);
+			yDriveDistance(-900, 127);
+			liftSet(liftOver);
+			wait1Msec(1000);
+			clawSet(clawOpen);
+			wait1Msec(1000);
+			liftSet(liftUp);
+		}
+		else
+		{
+			liftSet(1875);
+			clawSet(clawOpen);
+			yDriveDistance(1500, 127);
+			wait1Msec(1000);
 		}
 	}
 
-	if(SensorValue[SP] >= 900 && SensorValue[SP] <= 1800) //Skills
+	if(SensorValue[SP] >= 1395 && SensorValue[SP] <= 2730) //Skills
 	{
 		liftEnable = true;                  //Activate arm
 		clawEnable = true;                  //Activate claw
@@ -422,24 +439,36 @@ task autonomous()
 		/*"Phase I - Driver Loads"*/
 		for(int n	 = 0; n<3; n++)           //Run 3 times
 		{
-			wait1Msec(1000);									//Pause for Load placement
-			clawSet(clawClose);								//Grab driver load
-			wait1Msec(300);										//Pause
-			liftSet(liftUp);									//Lift driver load
-			yDriveDistance(round(-800), 127);	//Back up
-			liftSet(liftOver);								//Start lifting motion
-			dump(); 													//Dump
-			wait1Msec(500);										//Pause for Dump Completion
-			liftSet(liftDown);								//Lower the arm
-			wait1Msec(300);										//Pause for arm reset
-			yDriveDistance(800, 127);					//Drive forward
-			clawSet(clawOpen);								//Open claw for next load
+			wait1Msec(1000);                  //Pause for Load placement
+			clawSet(clawClose);               //Grab driver load
+			wait1Msec(300);                   //Pause
+			liftSet(liftUp);                  //Lift driver load
+			yDriveDistance(round(-800), 127); //Back up
+			liftSet(liftOver);                //Start lifting motion
+			dump();                           //Dump
+			wait1Msec(500);                   //Pause for Dump Completion
+			liftSet(liftDown);                //Lower the arm
+			wait1Msec(300);                   //Pause for arm reset
+			yDriveDistance(800, 127);         //Drive forward
+			clawSet(clawOpen);                //Open claw for next load
 		}
+
+		/*"Phase II - Cube"*/
+		turnLeftDegrees(2700);
+		yDriveDistance(1000, 127);
+		clawSet(clawClose);
+		wait1Msec(300);
+		liftSet(liftUp);
+		yDriveDistance(-1000, 127);
+		turnRightDegrees(0000);
+		liftSet(liftOver);
+		wait1Msec(1000);
+		clawSet(clawOpen);
 	}
 
-	if(SensorValue[SP] > 1800) //Right
+	if(SensorValue[SP] < 1365) //Right
 	{
-		if(SensorValue[OP] < 1350) //Cube
+		if(SensorValue[OP] < 2047) //Cube
 		{
 			liftEnable = true;
 			clawEnable = true;
@@ -447,19 +476,38 @@ task autonomous()
 			clawSet(clawOpen);
 			wait1Msec(100);
 			yDriveDistance(800, 127);
-			turnLeftDegrees(900);
+			turnLeftDegrees(2700);
 			liftSet(liftDown);
 			yDriveDistance(1000, 127);
 			clawSet(clawClose);
 			wait1Msec(300);
 			liftSet(liftUp);
 			turnLeftDegrees(1800);
-			yDriveDistance(-100,127);
+			yDriveDistance(-100, 127);
+			liftSet(liftOver);
+			wait1Msec(1000);
+			clawSet(clawOpen);
+			wait1Msec(1000);
+			liftSet(liftDown); //section 2
+			wait1Msec(1000);
+			yDriveDistance(900, 127);
+			wait1Msec(500);
+			clawSet(clawClose);
+			wait1Msec(600);
+			liftSet(liftUp);
+			yDriveDistance(-900, 127);
 			liftSet(liftOver);
 			wait1Msec(1000);
 			clawSet(clawOpen);
 			wait1Msec(1000);
 			liftSet(liftUp);
+		}
+		else
+		{
+			liftSet(1875);
+			clawSet(clawOpen);
+			yDriveDistance(1500, 127);
+			wait1Msec(1000);
 		}
 	}
 }
@@ -477,77 +525,77 @@ task autonomous()
 
 task usercontrol()
 {
-startTask(motorMath);
-startTask(setMotors);
-startTask(liftPID);
-startTask(clawPID);
+	startTask(motorMath);
+	startTask(setMotors);
+	startTask(liftPID);
+	startTask(clawPID);
 
-while(true)
-{
-	rotateDrive(abs(vexRT[Ch1]) > 20 ? vexRT[Ch1] : 0); //Right Joystick Horizontal - Rotation
-	forwardDrive(abs(vexRT[Ch3]) > 20 ? vexRT[Ch3] : 0); //Left Joystick Vertical - Forward
-	sideDrive(abs(vexRT[Ch4]) > 20 ? vexRT[Ch4] : 0); //Left Joystick Horizontal - Sideways
-
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	if(abs(vexRT[Ch2Xmtr2]) > 10) //Controller 2 Vertical - Manual Lift
+	while(true)
 	{
-		int x;
-		x = liftTarget + round(-vexRT[Ch2Xmtr2] * 0.04);
-		if(liftDown < x < liftOver)
+		rotateDrive(abs(vexRT[Ch1]) > 20 ? vexRT[Ch1] : 0); //Right Joystick Horizontal - Rotation
+		forwardDrive(abs(vexRT[Ch3]) > 20 ? vexRT[Ch3] : 0); //Left Joystick Vertical - Forward
+		sideDrive(abs(vexRT[Ch4]) > 20 ? vexRT[Ch4] : 0); //Left Joystick Horizontal - Sideways
+
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		if(abs(vexRT[Ch2Xmtr2]) > 10) //Controller 2 Vertical - Manual Lift
 		{
-			liftTarget = x;
+			int x;
+			x = liftTarget + round(-vexRT[Ch2Xmtr2] * 0.04);
+			if(liftDown < x < liftOver)
+			{
+				liftTarget = x;
+			}
+			if(x <= liftOver)
+			{
+				liftTarget = liftOver;
+			}
+			if(x >= liftDown)
+			{
+				liftTarget = liftDown;
+			}
 		}
-		if(x <= liftOver)
+
+		if(vexRT(Btn5DXmtr2) == true) //Manual Claw Close
 		{
-			liftTarget = liftOver;
+			clawSet(clawClose);
 		}
-		if(x >= liftDown)
+		if(vexRT(Btn5UXmtr2) == true) //Manual Claw Open
 		{
-			liftTarget = liftDown;
+			clawSet(clawOpen);
+		}
+
+		/////////////////////////////////////////////////////////////////////////////////
+
+		if(vexRT(Btn7D) == true || vexRT(Btn7DXmtr2) == true)
+		{
+			liftEnable = false;
+			clawEnable = false;
+		}
+
+		if(vexRT(Btn8DXmtr2) == true) //Macro - Down
+		{
+			liftEnable = true;
+			clawEnable = true;
+			liftSet(liftDown);
+			clawSet(clawOpen);
+		}
+
+		if(vexRT(Btn8RXmtr2) == true) //Macro - Lift
+		{
+			liftEnable = true;
+			clawEnable = true;
+			clawSet(clawClose);
+			wait1Msec(300);
+			liftSet(liftUp);
+		}
+
+		if(vexRT(Btn8UXmtr2) == true && vexRT(Btn6UXmtr2) == true || vexRT(Btn8UXmtr2) == true && vexRT(Btn6DXmtr2) == true) //Macro - Dump
+		{
+			liftEnable = true;
+			clawEnable = true;
+			liftSet(liftOver);
+			startTask(dumpTask);
 		}
 	}
-
-	if(vexRT(Btn5DXmtr2) == true) //Manual Claw Close
-	{
-		clawSet(clawClose);
-	}
-	if(vexRT(Btn5UXmtr2) == true) //Manual Claw Open
-	{
-		clawSet(clawOpen);
-	}
-
-	/////////////////////////////////////////////////////////////////////////////////
-
-	if(vexRT(Btn7D) == true || vexRT(Btn7DXmtr2) == true)
-	{
-		liftEnable = false;
-		clawEnable = false;
-	}
-
-	if(vexRT(Btn8DXmtr2) == true) //Macro - Down
-	{
-		liftEnable = true;
-		clawEnable = true;
-		liftSet(liftDown);
-		clawSet(clawOpen);
-	}
-
-	if(vexRT(Btn8RXmtr2) == true) //Macro - Lift
-	{
-		liftEnable = true;
-		clawEnable = true;
-		clawSet(clawClose);
-		wait1Msec(300);
-		liftSet(liftUp);
-	}
-
-	if(vexRT(Btn8UXmtr2) == true && vexRT(Btn6UXmtr2) == true || vexRT(Btn8UXmtr2) == true && vexRT(Btn6DXmtr2) == true) //Macro - Dump
-	{
-		liftEnable = true;
-		clawEnable = true;
-		liftSet(liftOver);
-		startTask(dumpTask);
-	}
-}
 }
