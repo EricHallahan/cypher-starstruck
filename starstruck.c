@@ -52,7 +52,7 @@ bool liftEnable = false;
 float KpClaw = 0.30;
 int clawTarget = 2800;
 int clawOpen = 1000;
-int clawClose = 1850;
+int clawClose = 1950;
 bool clawEnable = false;
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -404,7 +404,7 @@ task autonomous()
 			clawSet(clawOpen);
 			wait1Msec(1000);
 			liftSet(liftDown); //section2
-			wait1Msec(1000);
+			wait1Msec(4000);
 			yDriveDistance(900, 127);
 			wait1Msec(500);
 			clawSet(clawClose);
@@ -514,7 +514,7 @@ task autonomous()
 			clawSet(clawOpen);
 			wait1Msec(1000);
 			liftSet(liftDown); //section 2
-			wait1Msec(1000);
+			wait1Msec(4000);
 			yDriveDistance(900, 127);
 			wait1Msec(500);
 			clawSet(clawClose);
