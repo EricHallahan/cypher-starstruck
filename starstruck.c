@@ -592,7 +592,7 @@ task usercontrol()
 	startTask(liftPID);
 	startTask(clawPID);
 
-	startTask(data);
+	//startTask(data);
 
 	while(true)
 	{
