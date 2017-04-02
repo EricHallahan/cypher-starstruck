@@ -5,11 +5,11 @@
 #pragma config(Sensor, in3,    SP,             sensorPotentiometer)
 #pragma config(Sensor, in4,    OP,             sensorPotentiometer)
 #pragma config(Sensor, in5,    G,              sensorGyro)
-#pragma config(Sensor, I2C_1,  FLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
-#pragma config(Sensor, I2C_2,  RLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
+#pragma config(Sensor, I2C_1,  HE,             sensorQuadEncoderOnI2CPort,    , AutoAssign )
+#pragma config(Sensor, I2C_2,  FRE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Sensor, I2C_3,  RRE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
-#pragma config(Sensor, I2C_4,  FRE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
-#pragma config(Sensor, I2C_5,  HE,             sensorQuadEncoderOnI2CPort,    , AutoAssign )
+#pragma config(Sensor, I2C_4,  RLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
+#pragma config(Sensor, I2C_5,  FLE,            sensorQuadEncoderOnI2CPort,    , AutoAssign )
 #pragma config(Motor,  port1,           FL,            tmotorVex393HighSpeed_HBridge, openLoop, driveLeft, encoderPort, I2C_1)
 #pragma config(Motor,  port2,           FR,            tmotorVex393HighSpeed_MC29, openLoop, reversed, driveRight, encoderPort, I2C_2)
 #pragma config(Motor,  port3,           RR,            tmotorVex393HighSpeed_MC29, openLoop, reversed, driveRight, encoderPort, I2C_3)
@@ -39,11 +39,17 @@
 int motorRegistery[3][4];
 
 //Define lift variables
-float KpLift = 0.2;
-int liftTarget = 3450;
-int liftDown = 3450;
-int liftUp = 2600;
-int liftOver = 1000;
+float KpLift = 0.3;
+float KiLift = 0.0005;
+float KdLift = 0.1;
+int liftProportional = 0;
+int liftIntegral[2];
+int liftDerivative[2]; //0 = current, 1=last
+int liftError[2];
+int liftTarget = 3700;
+int liftDown = 3700;
+int liftUp = 2700;
+int liftOver = 1200;
 bool liftEnable = false;
 
 float KpClaw = 0.30;
@@ -285,7 +291,9 @@ task clawPID()
 
 task liftPID()
 {
-	int liftError = 0;
+	liftError[0] = 0;
+	liftIntegral[0] = 0;
+  liftIntegral[1] = 500;
 	int liftOutput = 0;
 
 	while(true)
@@ -294,10 +302,24 @@ task liftPID()
 		{
 
 			// Read the sensor value and scale
-			liftError = liftTarget - SensorValue[AP];
+			liftError[0] = liftTarget - SensorValue[AP];
 
 			// calculate drive
-			liftOutput = (KpLift * liftError);
+			liftProportional = (KpLift * liftError[0]);
+
+			if(abs(liftIntegral[0]) < liftIntegral[1])
+			{
+				liftIntegral[0] = liftIntegral[0] + liftError[0];
+			}
+			else
+			{
+				liftIntegral[0] = sgn(liftIntegral[0])*liftIntegral[1];
+			}
+
+			liftDerivative = liftError[0] - liftError[1];
+			liftError[1] = liftError[0];
+
+			liftOutput = (KpLift * liftProportional) + (KiLift*liftIntegral) + (KdLift*liftDerivative);
 
 			// limit drive
 			if (liftOutput > 127)
@@ -321,7 +343,7 @@ task liftPID()
 		}
 
 		// Run at 50Hz
-		wait1Msec( 20 );
+		wait1Msec(20);
 	}
 }
 
